@@ -29,10 +29,16 @@ public:
 private:
     void preprocess();
     void link_1();
-    void link_2();
+    void translate_data();
+    // void link_2();
     void if_equ_handler();
     string asm_path, preprocessed_path, mounted_path, line;
-    vector<string> directive_list;
+    vector<string> directive_list,
+    data_list,
+    new_data_list,
+    bss_list,
+    text_list,
+    new_text_list;
     vector<pair<string, int>> symbol_table, opcode_list;
 };
 
