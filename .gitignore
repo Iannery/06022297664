@@ -10,3 +10,6 @@ teste.obj
 teste.pre
 Montador.cpp
 Montador.h
+translator.cpp
+.gitignore
+a.asm

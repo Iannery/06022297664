@@ -30,9 +30,11 @@ private:
     void preprocess();
     void link_1();
     void translate_data();
+    void translate_text();
+    string opcode_to_ia32(string opcode, vector<string> operands);
     // void link_2();
     void if_equ_handler();
-    string asm_path, preprocessed_path, mounted_path, line;
+    string asm_path, preprocessed_path, ia32_path, line;
     vector<string> directive_list,
     data_list,
     new_data_list,

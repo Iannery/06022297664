@@ -21,7 +21,7 @@ using namespace std;
 Tradutor::Tradutor(string asm_path_to_file){
     this->asm_path = asm_path_to_file;
     this->preprocessed_path = this->asm_path.substr(0, this->asm_path.find(".")) + ".pre"; // utiliza o asm_path para criar um path do arquivo .pre
-    this->mounted_path = this->asm_path.substr(0, this->asm_path.find(".")) + ".obj"; // utiliza o asm_path para criar um path do arquivo .obj
+    this->ia32_path = this->asm_path.substr(0, this->asm_path.find(".")) + ".s"; // utiliza o asm_path para criar um path do arquivo .s
 }
 
 void Tradutor::inicializar_processo(){
@@ -47,11 +47,12 @@ void Tradutor::inicializar_processo(){
     this->opcode_list.push_back(make_pair("C_OUTPUT", 2));
     this->opcode_list.push_back(make_pair("NEVERCALLED", 0));
     this->opcode_list.push_back(make_pair("NEVERCALLED", 0));
-    this->opcode_list.push_back(make_pair("S_INPUT", 2));
-    this->opcode_list.push_back(make_pair("S_OUTPUT", 2));
+    this->opcode_list.push_back(make_pair("S_INPUT", 3));
+    this->opcode_list.push_back(make_pair("S_OUTPUT", 3));
     this->preprocess();
     this->link_1();
     this->translate_data();
+    this->translate_text();
 }
 
 /* > preprocess()
@@ -292,168 +293,116 @@ void Tradutor::translate_data(){
             new_command = "";
         }
     }
-    for(size_t i = 0; i < this->bss_list.size(); i++){
-        cout << this->bss_list.at(i) << endl;
-    }
-    for(size_t i = 0; i < this->new_data_list.size(); i++){
-        cout << this->new_data_list.at(i) << endl;
+    // for(size_t i = 0; i < this->bss_list.size(); i++){
+    //     cout << this->bss_list.at(i) << endl;
+    // }
+    // for(size_t i = 0; i < this->new_data_list.size(); i++){
+    //     cout << this->new_data_list.at(i) << endl;
+    // }
+}
+
+
+void Tradutor::translate_text(){
+    int no_label_flag = 0,
+        opcode_found_flag = 0;
+    string text_line, token, label, opcode, ia32_line;
+    vector<string> text_line_list, operands;
+    this->new_text_list.push_back("section .text");
+    this->new_text_list.push_back("_start:");
+    for(size_t i = 0; i < this->text_list.size(); i++){
+        cout << this->text_list.at(i) << endl;
+        no_label_flag = 0;
+        opcode_found_flag = 0;
+        ia32_line = "";
+        label = "";
+        opcode = "";
+        operands.clear();
+        text_line = this->text_list.at(i);
+        istringstream iss(text_line);
+        text_line_list.clear();
+        for(string s; iss >> s;){
+            text_line_list.push_back(s);
+        }
+        for(size_t j = 0; j < text_line_list.size(); j++){
+            token = text_line_list.at(j);
+            if(j == 0){
+                if(token.find(":") == std::string::npos){
+                    no_label_flag = 1;
+                }
+                else{
+                    label = token;
+                }
+            }
+            if(!opcode_found_flag){
+                for(size_t k = 1; k < this->opcode_list.size(); k++){
+                    // checa se a substring eh um opcode
+                    if(token == this->opcode_list.at(k).first){
+                        opcode = token;
+                        opcode_found_flag = 1;
+                        break;
+                        getchar();
+                    }
+                }
+            }
+            else{
+                operands.push_back(token);
+            }
+        }
+        ia32_line = opcode_to_ia32(opcode, operands);
     }
 }
 
-// void Tradutor::link_2(){
-    // int flag_const          = 0,
-    //     flag_space          = 0,
-    //     flag_section_text   = 0,
-    //     flag_section_data   = 0,
-    //     flag_label          = 0,
-    //     flag_label_continue = 0,
-    //     label_loc = 0;
-    // vector<int> object_list;
-    // vector<string> command_list, command_line;
-    // string  symbol_label = "";
-    // ifstream preprocessed_file;
-    // ofstream mounted_file;
-    // preprocessed_file.open(this->preprocessed_path);
-    // if (preprocessed_file.is_open()){
-    //     while (preprocessed_file.good()){
-    //         getline(preprocessed_file, this->line);
-    //         command_list.push_back(this->line); // passa as linhas do arquivo .pre para uma lista de comandos
-    //     }
+string Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
+    int plus_found = 0; 
+    size_t comma_position = -1, i;
+    string new_opcode = "", aux_token = "", concat_operands = "";
+
+    // tratar pra ver se tem '+'
+    for(i = 0; i < operands.size(); i++){
+        aux_token = operands.at(i);
+        if(aux_token.find(",") != std::string::npos){
+            operands.at(i) = operands.at(i).substr(0, operands.at(i).find(","));
+            comma_position = i;
+        }
+        if(aux_token == "+"){
+            plus_found = 1;
+            continue;
+        }
+        if(plus_found){  
+            operands.at(i) = to_string(stoi(aux_token) * 4);
+            plus_found = 0;
+        }
+    }
+    if(comma_position != -1){ // tratamento para dois operandos
+        for(i = 0; i <= comma_position; i++){
+            concat_operands += operands.at(i);
+        }
+        operands.erase(operands.begin(), operands.begin() + i);
+        operands.insert(operands.begin(), concat_operands);
+        concat_operands = "";
+        for(i = 1; i < operands.size(); i++){
+            concat_operands += operands.at(i);
+        }
+        operands.erase(operands.begin() + 1, operands.end());
+        operands.push_back(concat_operands);
+    }
+    else{ // tratamento para um operando
+        for(i = 0; i < operands.size(); i++){
+            concat_operands += operands.at(i);
+        }
+        operands.erase(operands.begin(), operands.end());
+        operands.push_back(concat_operands);
+    }
+    cout << "OPERANDS = " << endl;
+    for(size_t a = 0; a < operands.size(); a++){
+        cout << operands.at(a) << endl;
+    }
+    getchar();
+
+
+    // ADD
+    // if(token == "ADD"){
+    //     new_opcode = " add eax, []"
     // }
-    // preprocessed_file.close();
-    // // para cada linha da lista de comandos
-    // for(size_t i = 0; i < command_list.size(); i++){
-    //     // se a linha mostrar que esta na secao de texto, sobe a flag que esta nela ate ir para a secao de dados
-    //     if(command_list.at(i).find("SECTION TEXT") != std::string::npos){
-    //         flag_section_text = 1;
-    //         flag_section_data = 0;
-    //         continue;
-    //     }
-    //     // se a linha mostrar que esta na secao de dados, sobe a flag que esta nela
-    //     else if(command_list.at(i).find("SECTION DATA") != std::string::npos){
-
-    //         flag_section_text = 0;
-    //         flag_section_data = 1;
-    //         continue;
-    //     }
-    //     if(flag_section_text){
-    //         this->text_list.push_back(command_list.at(i));
-    //     }
-    //     else if(flag_section_data){
-    //         this->data_list.push_back(command_list.at(i));
-    //     }
-    // }
-    // cout << "TEXTO" << endl;
-    // for(size_t i = 0; i < this->text_list.size(); i++){
-    //     cout << this->text_list.at(i) << endl;
-    // }
-    // cout << "DATA" << endl;
-    // for(size_t i = 0; i < this->data_list.size(); i++){
-    //     cout << this->data_list.at(i) << endl;
-    // }
-
-
-
-
-
-
-
-
-        // subrotina para eliminar a virgula entre os argumentos do opcode COPY
-    //     if(command_list.at(i).find("COPY") != std::string::npos){
-    //         command_list.at(i).erase(
-    //             remove(
-    //                 command_list.at(i).begin(), 
-    //                 command_list.at(i).end(), 
-    //                 ','), 
-    //             command_list.at(i).end()
-    //         );
-    //     }
-    //     // fim da subrotina
-    //     // subrotina para separar todas as substrings de uma linha da lista de comandos
-    //     istringstream iss(command_list.at(i));
-    //     command_line.clear();
-    //     for(string s; iss >> s;){
-    //         command_line.push_back(s);
-    //     }
-    //     // fim da subrotina
-    //     flag_space = 0;
-    //     for(auto& s: command_line){ // para cada substring da linha de comando
-    //         // se estiver dentro da secao de texto
-    //         if(flag_section_text){
-    //             if(flag_label_continue){
-    //                 object_list.push_back(label_loc + stoi(s));
-    //                 label_loc = 0;
-    //                 flag_label = 0;
-    //                 flag_label_continue = 0;
-    //             }
-    //             if(flag_label){
-    //                 if(s != "+"){                        
-    //                     object_list.push_back(label_loc);
-    //                     flag_label = 0;
-    //                     label_loc = 0;
-    //                 }
-    //                 else{
-    //                     flag_label_continue = 1;
-    //                 }
-    //             }
-    //             for(size_t j = 1; j < this->opcode_list.size(); j++){
-    //                 // se a substring for um opcode, coloca na lista de objetos o codigo do opcode
-    //                 if(s == this->opcode_list.at(j).first){
-    //                     int converter = static_cast<int>(j);
-    //                     object_list.push_back(converter);
-    //                 }
-    //             }
-    //             for(size_t j = 0; j < this->symbol_table.size(); j++){
-    //                 // se a substring for uma label, varre a tabela de simbolos ate encontrar, e entao
-    //                 // coloca na lista de objetos a posicao de memoria gravada na tabela
-    //                 if(s == this->symbol_table.at(j).first){
-    //                     flag_label = 1;
-    //                     label_loc = this->symbol_table.at(j).second;
-    //                 }
-    //             }
-    //         }
-    //         else if(flag_section_data){
-    //             // se a substring anterior tivesse sido CONST
-    //             // coloca na lista de objetos o valor inteiro do valor desse const
-    //             if(flag_const){
-    //                 object_list.push_back(stoi(s));
-    //                 flag_const = 0;
-    //             }
-    //             else if(flag_space){
-    //                 for(int i = 0; i < stoi(s) - 1; i++){
-    //                     object_list.push_back(0);
-    //                 }
-    //                 flag_space = 0;
-    //             }
-    //             // se a substring for a diretiva SPACE,
-    //             // sobe uma flag para armazenar a proxima substring na lista de objetos
-    //             else if(s == this->directive_list.at(0)){
-    //                 object_list.push_back(0);
-    //                 flag_space = 1;
-    //             }
-    //             // se a substring for a diretiva CONST,
-    //             // sobe a flag para armazenar a proxima substring na lista de objetos
-    //             else if(s == this->directive_list.at(1)){
-    //                 flag_const = 1;
-    //             }
-    //         }
-    //     }
-    // }
-    // // cria o arquivo .obj e coloca nele a lista de objetos criada acima, separando os objetos com " "
-    // mounted_file.open(this->mounted_path);
-    // if (!mounted_file.is_open()){
-    //     cerr << "Erro na abertura do arquivo .obj";
-    // }
-    // else{    
-    //     for(size_t i = 0; i < object_list.size(); i++){
-    //         if(i < object_list.size() - 1){
-    //             mounted_file << object_list.at(i) << " ";
-    //         }
-    //         else{
-    //             mounted_file << object_list.at(i) << "\n";
-    //         }
-    //     }
-    // }
-    // mounted_file.close();
-// }
+    return "aaaa";
+}
