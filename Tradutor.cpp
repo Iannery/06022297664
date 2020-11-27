@@ -239,6 +239,7 @@ void Tradutor::translate_data(){
     vector<string> data_line_list;
     this->new_data_list.push_back("section .data");
     this->bss_list.push_back("section .bss");
+    this->bss_list.push_back("NBUFFER: resb 5");
     for(size_t i = 0; i < this->data_list.size(); i++){
 
         data_line = this->data_list.at(i);
@@ -251,9 +252,10 @@ void Tradutor::translate_data(){
             for(auto& s: data_line_list){ // para cada substring da linha de dados
                 if(s.find(":") != std::string::npos){
                     new_command = s.substr(0, s.find(":"));
+                    this->const_space_list.push_back(new_command);
                 }
                 else if(s == "CONST"){
-                    new_command += " DD ";
+                    new_command += " dd ";
                 }
                 else{
                     new_command += s;
@@ -267,9 +269,10 @@ void Tradutor::translate_data(){
                 for(auto& s: data_line_list){ // para cada substring da linha de dados
                     if(s.find(":") != std::string::npos){
                         new_command = s.substr(0, s.find(":"));
+                        this->const_space_list.push_back(new_command);
                     }
                     else if(s == "SPACE"){
-                        new_command += " RESD ";
+                        new_command += " resd ";
                     }
                     else{
                         new_command += s;
@@ -280,9 +283,10 @@ void Tradutor::translate_data(){
                 for(auto& s: data_line_list){ // para cada substring da linha de dados
                     if(s.find(":") != std::string::npos){
                         new_command = s.substr(0, s.find(":"));
+                        this->const_space_list.push_back(new_command);
                     }
                     else if(s == "SPACE"){
-                        new_command += " RESD 1";
+                        new_command += " resd 1";
                     }
                     else{
                         new_command += s;
@@ -305,15 +309,14 @@ void Tradutor::translate_data(){
 void Tradutor::translate_text(){
     int no_label_flag = 0,
         opcode_found_flag = 0;
-    string text_line, token, label, opcode, ia32_line;
-    vector<string> text_line_list, operands;
+    string text_line, token, label, opcode;
+    vector<string> text_line_list, operands, ia32_line_list;
     this->new_text_list.push_back("section .text");
     this->new_text_list.push_back("_start:");
     for(size_t i = 0; i < this->text_list.size(); i++){
         cout << this->text_list.at(i) << endl;
         no_label_flag = 0;
         opcode_found_flag = 0;
-        ia32_line = "";
         label = "";
         opcode = "";
         operands.clear();
@@ -348,28 +351,43 @@ void Tradutor::translate_text(){
                 operands.push_back(token);
             }
         }
-        ia32_line = opcode_to_ia32(opcode, operands);
+        ia32_line_list = opcode_to_ia32(opcode, operands);
     }
 }
 
-string Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
-    int plus_found = 0; 
+vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
+    int plus_found = 0, const_or_space = 0; 
     size_t comma_position = -1, i;
-    string new_opcode = "", aux_token = "", concat_operands = "";
+    vector<string> new_opcode;
+    new_opcode.clear();
+    string aux_token = "", concat_operands = "";
 
     // tratar pra ver se tem '+'
     for(i = 0; i < operands.size(); i++){
         aux_token = operands.at(i);
         if(aux_token.find(",") != std::string::npos){
             operands.at(i) = operands.at(i).substr(0, operands.at(i).find(","));
+            aux_token = operands.at(i);
             comma_position = i;
+        }
+        for(size_t j = 0; j < this->const_space_list.size(); j++){
+            if(aux_token == this->const_space_list.at(j)){
+                cout << "ENTROU" << endl;
+                const_or_space = 1;
+            }
         }
         if(aux_token == "+"){
             plus_found = 1;
             continue;
         }
-        if(plus_found){  
-            operands.at(i) = to_string(stoi(aux_token) * 4);
+        if(plus_found){
+            if(!const_or_space){
+                operands.at(i) = to_string(stoi(aux_token) * 4);
+            }
+            else{
+                operands.at(i) = to_string(stoi(aux_token) * 1);
+                const_or_space = 0;
+            }
             plus_found = 0;
         }
     }
@@ -401,8 +419,52 @@ string Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
 
 
     // ADD
-    // if(token == "ADD"){
-    //     new_opcode = " add eax, []"
-    // }
-    return "aaaa";
+    if(opcode == "ADD"){
+        new_opcode.push_back(" add eax, [" + operands.at(0) + "]");
+    }
+    else if(opcode == "SUB"){
+        new_opcode.push_back(" sub eax, [" + operands.at(0) + "]");
+    }
+    else if(opcode == "MULT"){
+        new_opcode.push_back(" mov ecx, [" + operands.at(0) + "]");
+        new_opcode.push_back(" imul ecx");
+    }
+    else if(opcode == "DIV"){
+        new_opcode.push_back(" cdq");
+        new_opcode.push_back(" mov ecx, [" + operands.at(0) + "]");
+        new_opcode.push_back(" idiv ecx");
+    }
+    else if(opcode == "JMP"){
+        new_opcode.push_back(" jmp [" + operands.at(0) + "]");
+    }
+    else if(opcode == "JMPN"){
+        new_opcode.push_back(" comp eax, 0");
+        new_opcode.push_back(" jl [" + operands.at(0) + "]");
+    }
+    else if(opcode == "JMPP"){
+        new_opcode.push_back(" comp eax, 0");
+        new_opcode.push_back(" jg [" + operands.at(0) + "]");
+    }
+    else if(opcode == "JMPZ"){
+        new_opcode.push_back(" comp eax, 0");
+        new_opcode.push_back(" je [" + operands.at(0) + "]");
+    }
+    else if(opcode == "COPY"){
+        new_opcode.push_back(" mov ebx, [" + operands.at(0) + "]");
+        new_opcode.push_back(" mov [" + operands.at(1) + "], ebx");
+
+    }
+    else if(opcode == "LOAD"){
+        new_opcode.push_back(" mov eax, [" + operands.at(0) + "]");
+    }
+    else if(opcode == "STORE"){
+        new_opcode.push_back(" mov [" + operands.at(0) + "], eax");
+    }
+    else if(opcode == "STOP"){
+        new_opcode.push_back(" mov eax, 1");
+        new_opcode.push_back(" mov ebx, 0");
+        new_opcode.push_back(" int 80h");
+    }
+    
+    return new_opcode;
 }
