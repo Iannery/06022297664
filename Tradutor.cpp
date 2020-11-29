@@ -349,13 +349,13 @@ void Tradutor::translate_text(){
             }
         }
         ia32_line_list = opcode_to_ia32(opcode, operands);
-        this->new_text_list.push_back("\t" + ia32_line_list);
     }
 }
 
 void Tradutor::create_overflow(){
-    this->new_data_list.push_back("\t_msg_overflow db \"Overflow!!\", 0DH, 0AH");
+    this->new_data_list.push_back("\t_msg_overflow db \'Overflow!!\', 0DH, 0AH");
     this->new_data_list.push_back("\t_msg_overflow_size equ $-_msg_overflow");
+
     this->new_text_list.push_back(";#### INICIO DA ROTINA DE OVERFLOW ####");
     // imprime a string da mensagem de overflow
     this->new_text_list.push_back("\tmov eax, 4");
@@ -371,30 +371,45 @@ void Tradutor::create_overflow(){
 }
 
 void Tradutor::create_leerchar(){
-    this->new_data_list.push_back("\t_msg_c_input db \"Numero de caracteres lidos: \", 0DH, 0AH");
-    this->new_data_list.push_back("\t_msg_c_input_size equ $-_msg_c_input");
+    this->new_data_list.push_back("\t_msg_c_input db \'Numero de caracteres lidos: \', 0DH, 0AH");
+    this->new_data_list.push_back("\t_msg_c_input_size equ $-_msg_c_input");    
+    this->new_data_list.push_back("\t_two db \'2\', 0DH, 0AH");
+    this->new_data_list.push_back("\t_two_size equ $-_two");
+
     this->new_text_list.push_back(";#### INICIO DA ROTINA PARA LER CHAR ####");
     this->new_text_list.push_back("LeerChar:");
     this->new_text_list.push_back("\tenter 0,0");
     this->new_text_list.push_back("\tmov eax, 3");
     this->new_text_list.push_back("\tmov ebx, 0");
     this->new_text_list.push_back("\tmov ecx, [ESP+8]");
-    this->new_text_list.push_back("\tmov edx, 1");
+    this->new_text_list.push_back("\tmov edx, 2");
     this->new_text_list.push_back("\tint 80h");
 
-    this->new_text_list.push_back("\tmov eax, 1");
+    this->new_text_list.push_back("\n");
+
+    this->new_text_list.push_back("\tmov eax, 4");
+    this->new_text_list.push_back("\tmov ebx, 1");
+    this->new_text_list.push_back("\tmov ecx, _msg_c_input");
+    this->new_text_list.push_back("\tmov edx, _msg_c_input_size");
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\n");
+
+    this->new_text_list.push_back("\tmov eax, 4");
+    this->new_text_list.push_back("\tmov ebx, 1");
+    this->new_text_list.push_back("\tmov ecx, _two");
+    this->new_text_list.push_back("\tmov edx, _two_size");
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\n");
+
+    this->new_text_list.push_back("\tmov eax, 2");
     this->new_text_list.push_back("\tleave");
     this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
     this->new_text_list.push_back(";########################################");
-    // FALTA ROTINA PRA PRINTAR O VALOR DE CARACTERES LIDOS
 }
 
 void Tradutor::create_escreverchar(){
-    this->new_data_list.push_back("\t_msg_c_output db \"Numero de caracteres escritos: \", 0DH, 0AH");
+    this->new_data_list.push_back("\t_msg_c_output db \'Numero de caracteres escritos:  \', 0DH, 0AH");
     this->new_data_list.push_back("\t_msg_c_output_size equ $-_msg_c_output");
-
-    this->bss_list.push_back("\t_leitor resb 5");
-    this->bss_list.push_back("\t_leitor_size equ $-_leitor");
 
     this->new_text_list.push_back(";#### INICIO DA ROTINA P ESCREVER CHAR ####");
     this->new_text_list.push_back("EscreverChar:");
@@ -406,7 +421,6 @@ void Tradutor::create_escreverchar(){
     this->new_text_list.push_back("\tint 80h");
     this->new_text_list.push_back("\n");
 
-    this->new_text_list.push_back("\tmov [_leitor], eax");
     this->new_text_list.push_back("\n");
 
     this->new_text_list.push_back("\tmov eax, 4");
@@ -419,18 +433,91 @@ void Tradutor::create_escreverchar(){
 
     this->new_text_list.push_back("\tmov eax, 4");
     this->new_text_list.push_back("\tmov ebx, 1");
-    this->new_text_list.push_back("\tmov ecx, _leitor");
-    this->new_text_list.push_back("\tmov edx, _leitor_size");
+    this->new_text_list.push_back("\tmov ecx, _two");
+    this->new_text_list.push_back("\tmov edx, _two_size");
     this->new_text_list.push_back("\tint 80h");
     this->new_text_list.push_back("\n");
 
 
-    this->new_text_list.push_back("\tmov eax, [_leitor]");
+    this->new_text_list.push_back("\tmov eax, 2");
     this->new_text_list.push_back("\tleave");
     this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
     this->new_text_list.push_back(";##########################################");
     this->new_text_list.push_back("\n");
+}
 
+void Tradutor::create_leerstring(){
+    this->new_text_list.push_back(";#### INICIO DA ROTINA PARA LER STRING ####");
+    this->new_text_list.push_back("LeerString:");
+    this->new_text_list.push_back("\tenter 0,0");
+    this->new_text_list.push_back("\tmov eax, 3");
+    this->new_text_list.push_back("\tmov ebx, 0");
+    this->new_text_list.push_back("\tmov ecx, [ESP+8]");
+    this->new_text_list.push_back("\tmov edx, [ESP+12]");
+    this->new_text_list.push_back("\tint 80h");
+
+    this->new_text_list.push_back("\n");
+    // ISSO N MUDA
+    this->new_text_list.push_back("\tmov eax, 4");
+    this->new_text_list.push_back("\tmov ebx, 1");
+    this->new_text_list.push_back("\tmov ecx, _msg_c_input");
+    this->new_text_list.push_back("\tmov edx, _msg_c_input_size");
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\n");
+
+    this->new_text_list.push_back("\tmov ebx, [ESP+8]");
+    this->new_text_list.push_back("\tmov eax, ebx");
+
+    this->new_text_list.push_back("\t_prox_char_r:");
+    this->new_text_list.push_back("\t\tcmp byte [eax], 0:");
+    this->new_text_list.push_back("\t\tjz _terminou_r");
+    this->new_text_list.push_back("\t\tinc eax");
+    this->new_text_list.push_back("\t\tjmp _prox_char_r");
+    this->new_text_list.push_back("\t_terminou_r:");
+    this->new_text_list.push_back("\t\tsub eax, ebx");
+    this->new_text_list.push_back("\t\tadd [buffer], eax");
+
+
+
+    this->new_text_list.push_back("\tmov eax, 2");
+    this->new_text_list.push_back("\tleave");
+    this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
+    this->new_text_list.push_back(";########################################");
+}
+
+
+void Tradutor::create_escreverchar(){
+    this->new_text_list.push_back(";#### INICIO DA ROTINA P ESCREVER STRING ####");
+    this->new_text_list.push_back("EscreverString:");
+    this->new_text_list.push_back("\tenter 0,0");
+    this->new_text_list.push_back("\tmov eax, 4");
+    this->new_text_list.push_back("\tmov ebx, 1");
+    this->new_text_list.push_back("\tmov ecx, [ESP+8]");
+    this->new_text_list.push_back("\tmov edx, [ESP+12]");
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\n");
+
+    this->new_text_list.push_back("\n");
+    // ISSO N MUDA
+    this->new_text_list.push_back("\tmov eax, 4");
+    this->new_text_list.push_back("\tmov ebx, 1");
+    this->new_text_list.push_back("\tmov ecx, _msg_c_output");
+    this->new_text_list.push_back("\tmov edx, _msg_c_output_size");
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\n");
+    // ISSO MUDA
+    this->new_text_list.push_back("\tmov eax, 4");
+    this->new_text_list.push_back("\tmov ebx, 1");
+    this->new_text_list.push_back("\tmov ecx, _two");
+    this->new_text_list.push_back("\tmov edx, _two_size");
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\n");
+
+    this->new_text_list.push_back("\tmov eax, [ESP+12]");
+    this->new_text_list.push_back("\tleave");
+    this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
+    this->new_text_list.push_back(";##########################################");
+    this->new_text_list.push_back("\n");
 }
 
 
@@ -556,6 +643,10 @@ vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
         new_opcode.push_back("\tpop eax"); // retorna o valor resultante da pilha pra eax
     }
     else if(opcode == "S_INPUT"){ // TEM DOIS OPERANDOS
+        //pilha: 
+        //  4 - eax
+        //  8 - operando
+        // 12 - tamanho 
         new_opcode.push_back("\tpush eax");
         new_opcode.push_back("\tpush " + operands.at(1)); // tamanho da string
         new_opcode.push_back("\tpush " + operands.at(0)); // local da string
@@ -563,6 +654,10 @@ vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
         new_opcode.push_back("\tpop eax");
     }
     else if(opcode == "S_OUTPUT"){ // TEM DOIS OPERANDOS
+        //pilha: 
+        //  4 - eax
+        //  8 - operando
+        // 12 - tamanho 
         new_opcode.push_back("\tpush eax");
         new_opcode.push_back("\tpush " + operands.at(1)); // tamanho da string
         new_opcode.push_back("\tpush " + operands.at(0)); // local da string

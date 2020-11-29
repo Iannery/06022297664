@@ -36,6 +36,9 @@ private:
     void if_equ_handler();
     void create_overflow();
     void create_leerchar();
+    void create_escreverchar();
+    void create_leerstring();
+    void create_escreverstring();
     string asm_path, preprocessed_path, ia32_path, line;
     vector<string> directive_list,
     data_list,
