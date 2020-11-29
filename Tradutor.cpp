@@ -371,16 +371,18 @@ void Tradutor::create_overflow(){
 }
 
 void Tradutor::create_leerchar(){
-    this->new_data_list.push_back("\t_msg_overflow db \"Overflow!!\", 0DH, 0AH");
-    this->new_data_list.push_back("\t_msg_overflow_size equ $-_msg_overflow");
+    this->new_data_list.push_back("\t_msg_c_input db \"Numero de caracteres lidos: \", 0DH, 0AH");
+    this->new_data_list.push_back("\t_msg_c_input_size equ $-_msg_c_input");
     this->new_text_list.push_back(";#### INICIO DA ROTINA PARA LER CHAR ####");
     this->new_text_list.push_back("LeerChar:");
     this->new_text_list.push_back("\tenter 0,0");
     this->new_text_list.push_back("\tmov eax, 3");
     this->new_text_list.push_back("\tmov ebx, 0");
     this->new_text_list.push_back("\tmov ecx, [ESP+8]");
-    this->new_text_list.push_back("\tmov edx, 1"); // talvez 2 aqui? p valer o enter
+    this->new_text_list.push_back("\tmov edx, 1");
     this->new_text_list.push_back("\tint 80h");
+
+    this->new_text_list.push_back("\tmov eax, 1");
     this->new_text_list.push_back("\tleave");
     this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
     this->new_text_list.push_back(";########################################");
@@ -388,20 +390,47 @@ void Tradutor::create_leerchar(){
 }
 
 void Tradutor::create_escreverchar(){
-    this->new_data_list.push_back("\t_msg_overflow db \"Overflow!!\", 0DH, 0AH");
-    this->new_data_list.push_back("\t_msg_overflow_size equ $-_msg_overflow");
+    this->new_data_list.push_back("\t_msg_c_output db \"Numero de caracteres escritos: \", 0DH, 0AH");
+    this->new_data_list.push_back("\t_msg_c_output_size equ $-_msg_c_output");
+
+    this->bss_list.push_back("\t_leitor resb 5");
+    this->bss_list.push_back("\t_leitor_size equ $-_leitor");
+
     this->new_text_list.push_back(";#### INICIO DA ROTINA P ESCREVER CHAR ####");
-    this->new_text_list.push_back("LeerChar:");
+    this->new_text_list.push_back("EscreverChar:");
     this->new_text_list.push_back("\tenter 0,0");
     this->new_text_list.push_back("\tmov eax, 4");
     this->new_text_list.push_back("\tmov ebx, 1");
     this->new_text_list.push_back("\tmov ecx, [ESP+8]");
-    this->new_text_list.push_back("\tmov edx, 1"); // talvez 2 aqui? p valer o enter
+    this->new_text_list.push_back("\tmov edx, 1");
     this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\n");
+
+    this->new_text_list.push_back("\tmov [_leitor], eax");
+    this->new_text_list.push_back("\n");
+
+    this->new_text_list.push_back("\tmov eax, 4");
+    this->new_text_list.push_back("\tmov ebx, 1");
+    this->new_text_list.push_back("\tmov ecx, _msg_c_output");
+    this->new_text_list.push_back("\tmov edx, _msg_c_output_size");
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\n");
+
+
+    this->new_text_list.push_back("\tmov eax, 4");
+    this->new_text_list.push_back("\tmov ebx, 1");
+    this->new_text_list.push_back("\tmov ecx, _leitor");
+    this->new_text_list.push_back("\tmov edx, _leitor_size");
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\n");
+
+
+    this->new_text_list.push_back("\tmov eax, [_leitor]");
     this->new_text_list.push_back("\tleave");
     this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
     this->new_text_list.push_back(";##########################################");
-    // FALTA ROTINA PRA PRINTAR O VALOR DE CARACTERES ESCRITOS
+    this->new_text_list.push_back("\n");
+
 }
 
 
