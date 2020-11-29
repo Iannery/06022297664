@@ -34,8 +34,10 @@ private:
     vector<string> opcode_to_ia32(string opcode, vector<string> operands);
     // void link_2();
     void if_equ_handler();
+    void create_overflow();
+    void create_leerchar();
     string asm_path, preprocessed_path, ia32_path, line;
-    vector<string> directive_list, const_space_list,
+    vector<string> directive_list,
     data_list,
     new_data_list,
     bss_list,

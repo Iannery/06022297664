@@ -239,7 +239,7 @@ void Tradutor::translate_data(){
     vector<string> data_line_list;
     this->new_data_list.push_back("section .data");
     this->bss_list.push_back("section .bss");
-    this->bss_list.push_back("NBUFFER: resb 5");
+    this->bss_list.push_back("\tNBUFFER: resb 5");
     for(size_t i = 0; i < this->data_list.size(); i++){
 
         data_line = this->data_list.at(i);
@@ -252,7 +252,6 @@ void Tradutor::translate_data(){
             for(auto& s: data_line_list){ // para cada substring da linha de dados
                 if(s.find(":") != std::string::npos){
                     new_command = s.substr(0, s.find(":"));
-                    this->const_space_list.push_back(new_command);
                 }
                 else if(s == "CONST"){
                     new_command += " dd ";
@@ -261,7 +260,7 @@ void Tradutor::translate_data(){
                     new_command += s;
                 }
             }
-            this->new_data_list.push_back(new_command);
+            this->new_data_list.push_back("\t" + new_command);
             new_command = "";
         }
         else if(data_line.find("SPACE") != std::string::npos){
@@ -269,7 +268,6 @@ void Tradutor::translate_data(){
                 for(auto& s: data_line_list){ // para cada substring da linha de dados
                     if(s.find(":") != std::string::npos){
                         new_command = s.substr(0, s.find(":"));
-                        this->const_space_list.push_back(new_command);
                     }
                     else if(s == "SPACE"){
                         new_command += " resd ";
@@ -283,7 +281,6 @@ void Tradutor::translate_data(){
                 for(auto& s: data_line_list){ // para cada substring da linha de dados
                     if(s.find(":") != std::string::npos){
                         new_command = s.substr(0, s.find(":"));
-                        this->const_space_list.push_back(new_command);
                     }
                     else if(s == "SPACE"){
                         new_command += " resd 1";
@@ -293,7 +290,7 @@ void Tradutor::translate_data(){
                     }
                 }
             }
-            this->bss_list.push_back(new_command);
+            this->bss_list.push_back("\t" + new_command);
             new_command = "";
         }
     }
@@ -352,11 +349,65 @@ void Tradutor::translate_text(){
             }
         }
         ia32_line_list = opcode_to_ia32(opcode, operands);
+        this->new_text_list.push_back("\t" + ia32_line_list);
     }
 }
 
+void Tradutor::create_overflow(){
+    this->new_data_list.push_back("\t_msg_overflow db \"Overflow!!\", 0DH, 0AH");
+    this->new_data_list.push_back("\t_msg_overflow_size equ $-_msg_overflow");
+    this->new_text_list.push_back(";#### INICIO DA ROTINA DE OVERFLOW ####");
+    // imprime a string da mensagem de overflow
+    this->new_text_list.push_back("\tmov eax, 4");
+    this->new_text_list.push_back("\tmov ebx, 1");
+    this->new_text_list.push_back("\tmov ecx, _msg_overflow");
+    this->new_text_list.push_back("\tmov edx, _msg_overflow_size");
+    this->new_text_list.push_back("\tint 80h");
+    // termina o programa
+    this->new_text_list.push_back("\tmov eax, 1");
+    this->new_text_list.push_back("\tmov ebx, 0");
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back(";######################################");
+}
+
+void Tradutor::create_leerchar(){
+    this->new_data_list.push_back("\t_msg_overflow db \"Overflow!!\", 0DH, 0AH");
+    this->new_data_list.push_back("\t_msg_overflow_size equ $-_msg_overflow");
+    this->new_text_list.push_back(";#### INICIO DA ROTINA PARA LER CHAR ####");
+    this->new_text_list.push_back("LeerChar:");
+    this->new_text_list.push_back("\tenter 0,0");
+    this->new_text_list.push_back("\tmov eax, 3");
+    this->new_text_list.push_back("\tmov ebx, 0");
+    this->new_text_list.push_back("\tmov ecx, [ESP+8]");
+    this->new_text_list.push_back("\tmov edx, 1"); // talvez 2 aqui? p valer o enter
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\tleave");
+    this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
+    this->new_text_list.push_back(";########################################");
+    // FALTA ROTINA PRA PRINTAR O VALOR DE CARACTERES LIDOS
+}
+
+void Tradutor::create_escreverchar(){
+    this->new_data_list.push_back("\t_msg_overflow db \"Overflow!!\", 0DH, 0AH");
+    this->new_data_list.push_back("\t_msg_overflow_size equ $-_msg_overflow");
+    this->new_text_list.push_back(";#### INICIO DA ROTINA P ESCREVER CHAR ####");
+    this->new_text_list.push_back("LeerChar:");
+    this->new_text_list.push_back("\tenter 0,0");
+    this->new_text_list.push_back("\tmov eax, 4");
+    this->new_text_list.push_back("\tmov ebx, 1");
+    this->new_text_list.push_back("\tmov ecx, [ESP+8]");
+    this->new_text_list.push_back("\tmov edx, 1"); // talvez 2 aqui? p valer o enter
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\tleave");
+    this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
+    this->new_text_list.push_back(";##########################################");
+    // FALTA ROTINA PRA PRINTAR O VALOR DE CARACTERES ESCRITOS
+}
+
+
+
 vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
-    int plus_found = 0, const_or_space = 0; 
+    int plus_found = 0; 
     size_t comma_position = -1, i;
     vector<string> new_opcode;
     new_opcode.clear();
@@ -370,24 +421,12 @@ vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
             aux_token = operands.at(i);
             comma_position = i;
         }
-        for(size_t j = 0; j < this->const_space_list.size(); j++){
-            if(aux_token == this->const_space_list.at(j)){
-                cout << "ENTROU" << endl;
-                const_or_space = 1;
-            }
-        }
         if(aux_token == "+"){
             plus_found = 1;
             continue;
         }
         if(plus_found){
-            if(!const_or_space){
-                operands.at(i) = to_string(stoi(aux_token) * 4);
-            }
-            else{
-                operands.at(i) = to_string(stoi(aux_token) * 1);
-                const_or_space = 0;
-            }
+            operands.at(i) = to_string(stoi(aux_token) * 4);
             plus_found = 0;
         }
     }
@@ -417,53 +456,89 @@ vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
     }
     getchar();
 
-
     // ADD
     if(opcode == "ADD"){
-        new_opcode.push_back(" add eax, [" + operands.at(0) + "]");
+        new_opcode.push_back("\tadd eax, [" + operands.at(0) + "]");
     }
     else if(opcode == "SUB"){
-        new_opcode.push_back(" sub eax, [" + operands.at(0) + "]");
+        new_opcode.push_back("\tsub eax, [" + operands.at(0) + "]");
     }
     else if(opcode == "MULT"){
-        new_opcode.push_back(" mov ecx, [" + operands.at(0) + "]");
-        new_opcode.push_back(" imul ecx");
+        new_opcode.push_back("\tmov ecx, [" + operands.at(0) + "]");
+        new_opcode.push_back("\timul ecx");
+        new_opcode.push_back("\tjo _overflow_err");
     }
     else if(opcode == "DIV"){
-        new_opcode.push_back(" cdq");
-        new_opcode.push_back(" mov ecx, [" + operands.at(0) + "]");
-        new_opcode.push_back(" idiv ecx");
+        new_opcode.push_back("\tcdq");
+        new_opcode.push_back("\tmov ecx, [" + operands.at(0) + "]");
+        new_opcode.push_back("\tidiv ecx");
     }
     else if(opcode == "JMP"){
-        new_opcode.push_back(" jmp [" + operands.at(0) + "]");
+        new_opcode.push_back("\tjmp [" + operands.at(0) + "]");
     }
     else if(opcode == "JMPN"){
-        new_opcode.push_back(" comp eax, 0");
-        new_opcode.push_back(" jl [" + operands.at(0) + "]");
+        new_opcode.push_back("\tcomp eax, 0");
+        new_opcode.push_back("\tjl [" + operands.at(0) + "]");
     }
     else if(opcode == "JMPP"){
-        new_opcode.push_back(" comp eax, 0");
-        new_opcode.push_back(" jg [" + operands.at(0) + "]");
+        new_opcode.push_back("\tcomp eax, 0");
+        new_opcode.push_back("\tjg [" + operands.at(0) + "]");
     }
     else if(opcode == "JMPZ"){
-        new_opcode.push_back(" comp eax, 0");
-        new_opcode.push_back(" je [" + operands.at(0) + "]");
+        new_opcode.push_back("\tcomp eax, 0");
+        new_opcode.push_back("\tje [" + operands.at(0) + "]");
     }
     else if(opcode == "COPY"){
-        new_opcode.push_back(" mov ebx, [" + operands.at(0) + "]");
-        new_opcode.push_back(" mov [" + operands.at(1) + "], ebx");
+        new_opcode.push_back("\tmov ebx, [" + operands.at(0) + "]");
+        new_opcode.push_back("\tmov [" + operands.at(1) + "], ebx");
 
     }
     else if(opcode == "LOAD"){
-        new_opcode.push_back(" mov eax, [" + operands.at(0) + "]");
+        new_opcode.push_back("\tmov eax, [" + operands.at(0) + "]");
     }
     else if(opcode == "STORE"){
-        new_opcode.push_back(" mov [" + operands.at(0) + "], eax");
+        new_opcode.push_back("\tmov [" + operands.at(0) + "], eax");
+    }
+    else if(opcode == "INPUT"){
+    }
+    else if(opcode == "OUTPUT"){
     }
     else if(opcode == "STOP"){
-        new_opcode.push_back(" mov eax, 1");
-        new_opcode.push_back(" mov ebx, 0");
-        new_opcode.push_back(" int 80h");
+        new_opcode.push_back("\tmov eax, 1");
+        new_opcode.push_back("\tmov ebx, 0");
+        new_opcode.push_back("\tint 80h");
+    }
+    else if(opcode == "C_INPUT"){
+        //pilha: 
+        //  4 - eax
+        //  8 - operando
+        new_opcode.push_back("\tpush eax");
+        new_opcode.push_back("\tpush " + operands.at(0));
+        new_opcode.push_back("\tcall LeerChar");
+        new_opcode.push_back("\tpop eax");
+    }
+    else if(opcode == "C_OUTPUT"){
+        //pilha: 
+        //  4 - eax
+        //  8 - operando
+        new_opcode.push_back("\tpush eax");
+        new_opcode.push_back("\tpush " + operands.at(0));
+        new_opcode.push_back("\tcall EscreverChar");
+        new_opcode.push_back("\tpop eax"); // retorna o valor resultante da pilha pra eax
+    }
+    else if(opcode == "S_INPUT"){ // TEM DOIS OPERANDOS
+        new_opcode.push_back("\tpush eax");
+        new_opcode.push_back("\tpush " + operands.at(1)); // tamanho da string
+        new_opcode.push_back("\tpush " + operands.at(0)); // local da string
+        new_opcode.push_back("\tcall LeerString");
+        new_opcode.push_back("\tpop eax");
+    }
+    else if(opcode == "S_OUTPUT"){ // TEM DOIS OPERANDOS
+        new_opcode.push_back("\tpush eax");
+        new_opcode.push_back("\tpush " + operands.at(1)); // tamanho da string
+        new_opcode.push_back("\tpush " + operands.at(0)); // local da string
+        new_opcode.push_back("\tcall EscreverString");
+        new_opcode.push_back("\tpop eax");
     }
     
     return new_opcode;
