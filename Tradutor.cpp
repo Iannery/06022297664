@@ -239,7 +239,8 @@ void Tradutor::translate_data(){
     vector<string> data_line_list;
     this->new_data_list.push_back("section .data");
     this->bss_list.push_back("section .bss");
-    this->bss_list.push_back("\tNBUFFER: resb 5");
+    this->bss_list.push_back("\tNBUFFER resb 5");
+    this->bss_list.push_back("\tAUX_INPUT resd 1");
     for(size_t i = 0; i < this->data_list.size(); i++){
 
         data_line = this->data_list.at(i);
@@ -349,7 +350,15 @@ void Tradutor::translate_text(){
             }
         }
         ia32_line_list = opcode_to_ia32(opcode, operands);
+        for(size_t j = 0; j < ia32_line_list.size(); j++){
+            this->new_text_list.push_back(ia32_line_list.at(j));
+        }
     }
+    this->new_text_list.push_back("\n");
+    this->new_text_list.push_back("\n");
+    this->new_text_list.push_back(";########### PROCEDURES ###########");
+    this->new_text_list.push_back("\n");
+
 }
 
 void Tradutor::create_overflow(){
@@ -371,77 +380,49 @@ void Tradutor::create_overflow(){
 }
 
 void Tradutor::create_leerchar(){
-    this->new_data_list.push_back("\t_msg_c_input db \'Numero de caracteres lidos: \', 0DH, 0AH");
-    this->new_data_list.push_back("\t_msg_c_input_size equ $-_msg_c_input");    
-    this->new_data_list.push_back("\t_two db \'2\', 0DH, 0AH");
-    this->new_data_list.push_back("\t_two_size equ $-_two");
+    this->new_data_list.push_back("\t_msg_input db \'Numero de caracteres lidos: \'");
+    this->new_data_list.push_back("\t_msg_input_size equ $-_msg_input");    
+    this->new_data_list.push_back("\t_breakline db \'\', 0DH, 0AH");
+    this->new_data_list.push_back("\t_breakline equ $-_breakline");
 
     this->new_text_list.push_back(";#### INICIO DA ROTINA PARA LER CHAR ####");
     this->new_text_list.push_back("LeerChar:");
     this->new_text_list.push_back("\tenter 0,0");
     this->new_text_list.push_back("\tmov eax, 3");
     this->new_text_list.push_back("\tmov ebx, 0");
-    this->new_text_list.push_back("\tmov ecx, [ESP+8]");
     this->new_text_list.push_back("\tmov edx, 2");
     this->new_text_list.push_back("\tint 80h");
 
-    this->new_text_list.push_back("\n");
+    this->new_text_list.push_back("\tmov [AUX_INPUT], eax");
 
-    this->new_text_list.push_back("\tmov eax, 4");
-    this->new_text_list.push_back("\tmov ebx, 1");
-    this->new_text_list.push_back("\tmov ecx, _msg_c_input");
-    this->new_text_list.push_back("\tmov edx, _msg_c_input_size");
-    this->new_text_list.push_back("\tint 80h");
-    this->new_text_list.push_back("\n");
+    this->new_text_list.push_back("\tmov ecx, _msg_input");
+    this->new_text_list.push_back("\tmov edx, _msg_input_size");
+    this->new_text_list.push_back("\tcall EscreverString");
 
-    this->new_text_list.push_back("\tmov eax, 4");
-    this->new_text_list.push_back("\tmov ebx, 1");
-    this->new_text_list.push_back("\tmov ecx, _two");
-    this->new_text_list.push_back("\tmov edx, _two_size");
-    this->new_text_list.push_back("\tint 80h");
-    this->new_text_list.push_back("\n");
+    this->new_text_list.push_back("\tmov eax, [AUX_INPUT]");
+    this->new_text_list.push_back("\tlea esi, [NBUFFER]");
+    this->new_text_list.push_back("\tcall EscreverInteiro");
 
-    this->new_text_list.push_back("\tmov eax, 2");
+    this->new_text_list.push_back("\tmov ecx, _breakline");
+    this->new_text_list.push_back("\tmov edx, _breakline_size");
+    this->new_text_list.push_back("\tcall EscreverString");
+
+    this->new_text_list.push_back("\tmov eax, [AUX_INPUT]");
     this->new_text_list.push_back("\tleave");
-    this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
+    this->new_text_list.push_back("\tret");
     this->new_text_list.push_back(";########################################");
 }
 
 void Tradutor::create_escreverchar(){
-    this->new_data_list.push_back("\t_msg_c_output db \'Numero de caracteres escritos:  \', 0DH, 0AH");
-    this->new_data_list.push_back("\t_msg_c_output_size equ $-_msg_c_output");
-
     this->new_text_list.push_back(";#### INICIO DA ROTINA P ESCREVER CHAR ####");
     this->new_text_list.push_back("EscreverChar:");
     this->new_text_list.push_back("\tenter 0,0");
     this->new_text_list.push_back("\tmov eax, 4");
     this->new_text_list.push_back("\tmov ebx, 1");
-    this->new_text_list.push_back("\tmov ecx, [ESP+8]");
-    this->new_text_list.push_back("\tmov edx, 1");
+    this->new_text_list.push_back("\tmov edx, 2");
     this->new_text_list.push_back("\tint 80h");
-    this->new_text_list.push_back("\n");
-
-    this->new_text_list.push_back("\n");
-
-    this->new_text_list.push_back("\tmov eax, 4");
-    this->new_text_list.push_back("\tmov ebx, 1");
-    this->new_text_list.push_back("\tmov ecx, _msg_c_output");
-    this->new_text_list.push_back("\tmov edx, _msg_c_output_size");
-    this->new_text_list.push_back("\tint 80h");
-    this->new_text_list.push_back("\n");
-
-
-    this->new_text_list.push_back("\tmov eax, 4");
-    this->new_text_list.push_back("\tmov ebx, 1");
-    this->new_text_list.push_back("\tmov ecx, _two");
-    this->new_text_list.push_back("\tmov edx, _two_size");
-    this->new_text_list.push_back("\tint 80h");
-    this->new_text_list.push_back("\n");
-
-
-    this->new_text_list.push_back("\tmov eax, 2");
     this->new_text_list.push_back("\tleave");
-    this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
+    this->new_text_list.push_back("\tret");
     this->new_text_list.push_back(";##########################################");
     this->new_text_list.push_back("\n");
 }
@@ -452,72 +433,140 @@ void Tradutor::create_leerstring(){
     this->new_text_list.push_back("\tenter 0,0");
     this->new_text_list.push_back("\tmov eax, 3");
     this->new_text_list.push_back("\tmov ebx, 0");
-    this->new_text_list.push_back("\tmov ecx, [ESP+8]");
-    this->new_text_list.push_back("\tmov edx, [ESP+12]");
     this->new_text_list.push_back("\tint 80h");
 
-    this->new_text_list.push_back("\n");
-    // ISSO N MUDA
-    this->new_text_list.push_back("\tmov eax, 4");
-    this->new_text_list.push_back("\tmov ebx, 1");
-    this->new_text_list.push_back("\tmov ecx, _msg_c_input");
-    this->new_text_list.push_back("\tmov edx, _msg_c_input_size");
-    this->new_text_list.push_back("\tint 80h");
-    this->new_text_list.push_back("\n");
+    this->new_text_list.push_back("\tmov [AUX_INPUT], eax");
 
-    this->new_text_list.push_back("\tmov ebx, [ESP+8]");
-    this->new_text_list.push_back("\tmov eax, ebx");
+    this->new_text_list.push_back("\tmov ecx, _msg_input");
+    this->new_text_list.push_back("\tmov edx, _msg_input_size");
+    this->new_text_list.push_back("\tcall EscreverString");
 
-    this->new_text_list.push_back("\t_prox_char_r:");
-    this->new_text_list.push_back("\t\tcmp byte [eax], 0:");
-    this->new_text_list.push_back("\t\tjz _terminou_r");
-    this->new_text_list.push_back("\t\tinc eax");
-    this->new_text_list.push_back("\t\tjmp _prox_char_r");
-    this->new_text_list.push_back("\t_terminou_r:");
-    this->new_text_list.push_back("\t\tsub eax, ebx");
-    this->new_text_list.push_back("\t\tadd [buffer], eax");
+    this->new_text_list.push_back("\tmov eax, [AUX_INPUT]");
+    this->new_text_list.push_back("\tlea esi, [NBUFFER]");
+    this->new_text_list.push_back("\tcall EscreverInteiro");
 
+    this->new_text_list.push_back("\tmov ecx, _breakline");
+    this->new_text_list.push_back("\tmov edx, _breakline_size");
+    this->new_text_list.push_back("\tcall EscreverString");
 
-
-    this->new_text_list.push_back("\tmov eax, 2");
+    this->new_text_list.push_back("\tmov eax, [AUX_INPUT]");
     this->new_text_list.push_back("\tleave");
-    this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
+    this->new_text_list.push_back("\tret");
     this->new_text_list.push_back(";########################################");
+    this->new_text_list.push_back("\n");
 }
 
 
-void Tradutor::create_escreverchar(){
+void Tradutor::create_escreverstring(){
     this->new_text_list.push_back(";#### INICIO DA ROTINA P ESCREVER STRING ####");
     this->new_text_list.push_back("EscreverString:");
     this->new_text_list.push_back("\tenter 0,0");
     this->new_text_list.push_back("\tmov eax, 4");
     this->new_text_list.push_back("\tmov ebx, 1");
-    this->new_text_list.push_back("\tmov ecx, [ESP+8]");
-    this->new_text_list.push_back("\tmov edx, [ESP+12]");
     this->new_text_list.push_back("\tint 80h");
-    this->new_text_list.push_back("\n");
-
-    this->new_text_list.push_back("\n");
-    // ISSO N MUDA
-    this->new_text_list.push_back("\tmov eax, 4");
-    this->new_text_list.push_back("\tmov ebx, 1");
-    this->new_text_list.push_back("\tmov ecx, _msg_c_output");
-    this->new_text_list.push_back("\tmov edx, _msg_c_output_size");
-    this->new_text_list.push_back("\tint 80h");
-    this->new_text_list.push_back("\n");
-    // ISSO MUDA
-    this->new_text_list.push_back("\tmov eax, 4");
-    this->new_text_list.push_back("\tmov ebx, 1");
-    this->new_text_list.push_back("\tmov ecx, _two");
-    this->new_text_list.push_back("\tmov edx, _two_size");
-    this->new_text_list.push_back("\tint 80h");
-    this->new_text_list.push_back("\n");
-
-    this->new_text_list.push_back("\tmov eax, [ESP+12]");
     this->new_text_list.push_back("\tleave");
-    this->new_text_list.push_back("\tret 4"); // retorna 4 bytes para o esp estar apontando para o eax
+    this->new_text_list.push_back("\tret");
     this->new_text_list.push_back(";##########################################");
     this->new_text_list.push_back("\n");
+}
+
+void Tradutor::create_converteint(){
+    this->new_text_list.push_back(";#### INICIO DA ROTINA P CONVERTER STR P INT ####");
+    this->new_text_list.push_back("ConverteInteiro:");
+    this->new_text_list.push_back("\tmov eax, 0");
+    this->new_text_list.push_back("\tmov ebx, 10");
+    this->new_text_list.push_back("\tmov edx, 0");
+    this->new_text_list.push_back("\t; flag numero negativo");
+    this->new_text_list.push_back("\tmov edi, 0");
+    this->new_text_list.push_back("\tmovzx edx, BYTE [esi]");
+    this->new_text_list.push_back("\tcmp edx, '-'");
+    this->new_text_list.push_back("\tjne _convert2");
+    this->new_text_list.push_back("\t; tratamento para negativo");
+    this->new_text_list.push_back("\tinc esi");
+    this->new_text_list.push_back("\tmov edi, 1");
+
+    this->new_text_list.push_back("_convert2:");
+    this->new_text_list.push_back("\tmovzx edx, BYTE [esi]");
+    this->new_text_list.push_back("\tinc esi");
+    this->new_text_list.push_back("\tcmp edx, 48");
+    this->new_text_list.push_back("\tjl _neg_test");
+    this->new_text_list.push_back("\tcmp edx, 57");
+    this->new_text_list.push_back("\tjg _neg_test");
+    this->new_text_list.push_back("\t; se ainda for um numero");
+    this->new_text_list.push_back("\tsub edx, 48");
+    this->new_text_list.push_back("\timul eax, ebx");
+    this->new_text_list.push_back("\tadd eax, edx");
+    this->new_text_list.push_back("\tjmp _convert2");
+
+    this->new_text_list.push_back("_neg_test:");
+    this->new_text_list.push_back("\tcmp edi, 0");
+    this->new_text_list.push_back("\tje _return");
+    this->new_text_list.push_back("\t; se for numero negativo");
+    this->new_text_list.push_back("\tmov edx, 0");
+    this->new_text_list.push_back("\tsub edx, eax");
+    this->new_text_list.push_back("\tmov eax, edx");
+
+    this->new_text_list.push_back("_return:");
+    this->new_text_list.push_back("\tret");
+    this->new_text_list.push_back(";##########################################");
+
+}
+
+
+void Tradutor::create_escreverint(){
+    this->new_text_list.push_back(";#### INICIO DA ROTINA P ESCREVER INT ####");
+    this->new_text_list.push_back("EscreverInteiro:");
+    this->new_text_list.push_back("\tenter 0,0");
+    // inicializacao do ESI
+    this->new_text_list.push_back("\tmov BYTE [esi], 0");
+    this->new_text_list.push_back("\tmov BYTE [esi+1], 0");
+    this->new_text_list.push_back("\tmov BYTE [esi+2], 0");
+    this->new_text_list.push_back("\tmov BYTE [esi+3], 0");
+    this->new_text_list.push_back("\tmov BYTE [esi+4], 0");
+
+    this->new_text_list.push_back("\tmov edx, 0");
+    this->new_text_list.push_back("\t; flag de numero negativo");
+    this->new_text_list.push_back("\tmov edi, 0");
+    this->new_text_list.push_back("\tcmp eax, 0");
+    this->new_text_list.push_back("\tjnl _init");
+    this->new_text_list.push_back("\t; tratamento para negativo");
+    this->new_text_list.push_back("\tsub edx, eax");
+    this->new_text_list.push_back("\tmov eax, edx");
+    this->new_text_list.push_back("\tmov edi, 1");
+    this->new_text_list.push_back("\tmov edx, 0");
+
+    this->new_text_list.push_back("_init:");
+    this->new_text_list.push_back("\tadd esi, 5");
+    this->new_text_list.push_back("\tdec esi");
+    this->new_text_list.push_back("\tmov ebx, 10");
+
+    this->new_text_list.push_back("_convert:");
+    this->new_text_list.push_back("\txor edx, edx");
+    this->new_text_list.push_back("\tdiv ebx");
+    this->new_text_list.push_back("\tadd dl, 48");
+    this->new_text_list.push_back("\tdec esi");
+    this->new_text_list.push_back("\tmov [esi], dl");
+    this->new_text_list.push_back("\ttest eax, eax");
+    this->new_text_list.push_back("\tjne _convert");
+    this->new_text_list.push_back("\tcmp edi, 0");
+    this->new_text_list.push_back("\tje _print_int");
+    this->new_text_list.push_back("\t; se o numero for negativo");
+    this->new_text_list.push_back("\txor edx, edx");
+    this->new_text_list.push_back("\tadd dl, '-'");
+    this->new_text_list.push_back("\tdec esi");
+    this->new_text_list.push_back("\tmov [esi], dl");
+
+    this->new_text_list.push_back("_print_int:");
+    this->new_text_list.push_back("\tmov eax, 4");
+    this->new_text_list.push_back("\tmov ebx, 1");
+    this->new_text_list.push_back("\tmov ecx, NBUFFER");
+    this->new_text_list.push_back("\tmov edx, 5");
+    this->new_text_list.push_back("\tint 80h");
+    this->new_text_list.push_back("\tleave");
+    this->new_text_list.push_back("\tret");
+    this->new_text_list.push_back(";#######################################");
+    this->new_text_list.push_back("\n");
+
 }
 
 
@@ -616,8 +665,18 @@ vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
         new_opcode.push_back("\tmov [" + operands.at(0) + "], eax");
     }
     else if(opcode == "INPUT"){
+        new_opcode.push_back("mov ecx, " + operands.at(0));
+        new_opcode.push_back("mov edx, 5");
+        new_opcode.push_back("call LeerString");
+        new_opcode.push_back("mov esi, " + operands.at(0));
+        new_opcode.push_back("call ConverteInteiro");
+        new_opcode.push_back("mov [" + operands.at(0) + "], eax");
     }
     else if(opcode == "OUTPUT"){
+        new_opcode.push_back("\tmov eax, [" + operands.at(0) + "]");
+        new_opcode.push_back("\tlea esi, [NBUFFER]");
+        new_opcode.push_back("\tcall EscreverInteiro");
+
     }
     else if(opcode == "STOP"){
         new_opcode.push_back("\tmov eax, 1");
@@ -625,44 +684,22 @@ vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
         new_opcode.push_back("\tint 80h");
     }
     else if(opcode == "C_INPUT"){
-        //pilha: 
-        //  4 - eax
-        //  8 - operando
-        new_opcode.push_back("\tpush eax");
-        new_opcode.push_back("\tpush " + operands.at(0));
+        new_opcode.push_back("\tmov ecx, " + operands.at(0));
         new_opcode.push_back("\tcall LeerChar");
-        new_opcode.push_back("\tpop eax");
     }
     else if(opcode == "C_OUTPUT"){
-        //pilha: 
-        //  4 - eax
-        //  8 - operando
-        new_opcode.push_back("\tpush eax");
-        new_opcode.push_back("\tpush " + operands.at(0));
+        new_opcode.push_back("\tmov ecx, " + operands.at(0));
         new_opcode.push_back("\tcall EscreverChar");
-        new_opcode.push_back("\tpop eax"); // retorna o valor resultante da pilha pra eax
     }
     else if(opcode == "S_INPUT"){ // TEM DOIS OPERANDOS
-        //pilha: 
-        //  4 - eax
-        //  8 - operando
-        // 12 - tamanho 
-        new_opcode.push_back("\tpush eax");
-        new_opcode.push_back("\tpush " + operands.at(1)); // tamanho da string
-        new_opcode.push_back("\tpush " + operands.at(0)); // local da string
+        new_opcode.push_back("\tmov ecx, " + operands.at(0)); // local da string
+        new_opcode.push_back("\tmov edx, " + operands.at(1)); // tamanho da string
         new_opcode.push_back("\tcall LeerString");
-        new_opcode.push_back("\tpop eax");
     }
     else if(opcode == "S_OUTPUT"){ // TEM DOIS OPERANDOS
-        //pilha: 
-        //  4 - eax
-        //  8 - operando
-        // 12 - tamanho 
-        new_opcode.push_back("\tpush eax");
-        new_opcode.push_back("\tpush " + operands.at(1)); // tamanho da string
-        new_opcode.push_back("\tpush " + operands.at(0)); // local da string
+        new_opcode.push_back("\tmov ecx, " + operands.at(0)); // local da string
+        new_opcode.push_back("\tmov edx, " + operands.at(1)); // tamanho da string
         new_opcode.push_back("\tcall EscreverString");
-        new_opcode.push_back("\tpop eax");
     }
     
     return new_opcode;

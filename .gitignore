@@ -12,4 +12,9 @@ Montador.cpp
 Montador.h
 translator.cpp
 .gitignore
-a.asm
+teste
+aaaa/a.asm
+aaaa/b.asm
+aaaa/c.asm
+aaaa/d.asm
+aaaa/lerint.asm
