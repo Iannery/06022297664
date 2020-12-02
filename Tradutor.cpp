@@ -4,7 +4,7 @@
  * Ian Nery Bandeira                    *
  * 170144739                            *
  *                                      *
- * Versao do compilador:                *
+ * Versao do cmpilador:                *
  * g++ (Ubuntu 9.3.0-10ubuntu2) 9.3.0   *
  *                                      *
  ****************************************/
@@ -50,9 +50,11 @@ void Tradutor::inicializar_processo(){
     this->opcode_list.push_back(make_pair("S_INPUT", 3));
     this->opcode_list.push_back(make_pair("S_OUTPUT", 3));
     this->preprocess();
-    this->link_1();
+    this->link();
     this->translate_data();
     this->translate_text();
+    this->insert_procedures();
+    this->translation_to_file();
 }
 
 /* > preprocess()
@@ -186,7 +188,7 @@ void Tradutor::if_equ_handler(){
 }
 
 
-void Tradutor::link_1(){
+void Tradutor::link(){
     int flag_section_text   = 0,
         flag_section_data   = 0;
     vector<string> command_list, command_line;
@@ -305,15 +307,12 @@ void Tradutor::translate_data(){
 
 
 void Tradutor::translate_text(){
-    int no_label_flag = 0,
-        opcode_found_flag = 0;
+    int opcode_found_flag = 0;
     string text_line, token, label, opcode;
     vector<string> text_line_list, operands, ia32_line_list;
     this->new_text_list.push_back("section .text");
     this->new_text_list.push_back("_start:");
     for(size_t i = 0; i < this->text_list.size(); i++){
-        cout << this->text_list.at(i) << endl;
-        no_label_flag = 0;
         opcode_found_flag = 0;
         label = "";
         opcode = "";
@@ -327,10 +326,7 @@ void Tradutor::translate_text(){
         for(size_t j = 0; j < text_line_list.size(); j++){
             token = text_line_list.at(j);
             if(j == 0){
-                if(token.find(":") == std::string::npos){
-                    no_label_flag = 1;
-                }
-                else{
+                if(token.find(":") != std::string::npos){
                     label = token;
                 }
             }
@@ -349,16 +345,46 @@ void Tradutor::translate_text(){
                 operands.push_back(token);
             }
         }
-        ia32_line_list = opcode_to_ia32(opcode, operands);
+        ia32_line_list = opcode_to_ia32(opcode, operands, label);
         for(size_t j = 0; j < ia32_line_list.size(); j++){
             this->new_text_list.push_back(ia32_line_list.at(j));
         }
     }
+}
+
+void Tradutor::translation_to_file(){
+    ofstream ia32_file;
+    ia32_file.open(this->ia32_path);
+    if (!ia32_file.is_open()){
+        cerr << "Erro na abertura do arquivo .obj";
+    }
+    else{
+        ia32_file << "global _start\n";
+        for(size_t i = 0; i < this->bss_list.size(); i++){
+            ia32_file << this->bss_list.at(i) << "\n";
+        }
+        for(size_t i = 0; i < this->new_data_list.size(); i++){
+            ia32_file << this->new_data_list.at(i) << "\n";
+        }
+        for(size_t i = 0; i < this->new_text_list.size(); i++){
+            ia32_file << this->new_text_list.at(i) << "\n";
+        }
+    }
+    ia32_file.close();
+}
+
+void Tradutor::insert_procedures(){
     this->new_text_list.push_back("\n");
     this->new_text_list.push_back("\n");
     this->new_text_list.push_back(";########### PROCEDURES ###########");
     this->new_text_list.push_back("\n");
-
+    this->create_leerchar();
+    this->create_escreverchar();
+    this->create_leerstring();
+    this->create_escreverstring();
+    this->create_escreverint();
+    this->create_converteint();
+    this->create_overflow();
 }
 
 void Tradutor::create_overflow(){
@@ -367,6 +393,7 @@ void Tradutor::create_overflow(){
 
     this->new_text_list.push_back(";#### INICIO DA ROTINA DE OVERFLOW ####");
     // imprime a string da mensagem de overflow
+    this->new_text_list.push_back("_overflow_err:");
     this->new_text_list.push_back("\tmov eax, 4");
     this->new_text_list.push_back("\tmov ebx, 1");
     this->new_text_list.push_back("\tmov ecx, _msg_overflow");
@@ -383,7 +410,7 @@ void Tradutor::create_leerchar(){
     this->new_data_list.push_back("\t_msg_input db \'Numero de caracteres lidos: \'");
     this->new_data_list.push_back("\t_msg_input_size equ $-_msg_input");    
     this->new_data_list.push_back("\t_breakline db \'\', 0DH, 0AH");
-    this->new_data_list.push_back("\t_breakline equ $-_breakline");
+    this->new_data_list.push_back("\t_breakline_size equ $-_breakline");
 
     this->new_text_list.push_back(";#### INICIO DA ROTINA PARA LER CHAR ####");
     this->new_text_list.push_back("LeerChar:");
@@ -557,6 +584,8 @@ void Tradutor::create_escreverint(){
     this->new_text_list.push_back("\tmov [esi], dl");
 
     this->new_text_list.push_back("_print_int:");
+    this->new_text_list.push_back("\tmov dl, BYTE [_breakline + 1]");
+    this->new_text_list.push_back("\tmov [NBUFFER + 4], dl");
     this->new_text_list.push_back("\tmov eax, 4");
     this->new_text_list.push_back("\tmov ebx, 1");
     this->new_text_list.push_back("\tmov ecx, NBUFFER");
@@ -571,13 +600,15 @@ void Tradutor::create_escreverint(){
 
 
 
-vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
+vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands, string label){
     int plus_found = 0; 
     size_t comma_position = -1, i;
     vector<string> new_opcode;
     new_opcode.clear();
     string aux_token = "", concat_operands = "";
-
+    if(!label.empty()){
+        new_opcode.push_back(label);
+    }
     // tratar pra ver se tem '+'
     for(i = 0; i < operands.size(); i++){
         aux_token = operands.at(i);
@@ -595,7 +626,7 @@ vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
             plus_found = 0;
         }
     }
-    if(comma_position != -1){ // tratamento para dois operandos
+    if(static_cast<int>(comma_position) != -1){ // tratamento para dois operandos
         for(i = 0; i <= comma_position; i++){
             concat_operands += operands.at(i);
         }
@@ -615,12 +646,6 @@ vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
         operands.erase(operands.begin(), operands.end());
         operands.push_back(concat_operands);
     }
-    cout << "OPERANDS = " << endl;
-    for(size_t a = 0; a < operands.size(); a++){
-        cout << operands.at(a) << endl;
-    }
-    getchar();
-
     // ADD
     if(opcode == "ADD"){
         new_opcode.push_back("\tadd eax, [" + operands.at(0) + "]");
@@ -639,19 +664,19 @@ vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
         new_opcode.push_back("\tidiv ecx");
     }
     else if(opcode == "JMP"){
-        new_opcode.push_back("\tjmp [" + operands.at(0) + "]");
+        new_opcode.push_back("\tjmp " + operands.at(0));
     }
     else if(opcode == "JMPN"){
-        new_opcode.push_back("\tcomp eax, 0");
-        new_opcode.push_back("\tjl [" + operands.at(0) + "]");
+        new_opcode.push_back("\tcmp eax, 0");
+        new_opcode.push_back("\tjl " + operands.at(0));
     }
     else if(opcode == "JMPP"){
-        new_opcode.push_back("\tcomp eax, 0");
-        new_opcode.push_back("\tjg [" + operands.at(0) + "]");
+        new_opcode.push_back("\tcmp eax, 0");
+        new_opcode.push_back("\tjg " + operands.at(0));
     }
     else if(opcode == "JMPZ"){
-        new_opcode.push_back("\tcomp eax, 0");
-        new_opcode.push_back("\tje [" + operands.at(0) + "]");
+        new_opcode.push_back("\tcmp eax, 0");
+        new_opcode.push_back("\tje " + operands.at(0));
     }
     else if(opcode == "COPY"){
         new_opcode.push_back("\tmov ebx, [" + operands.at(0) + "]");
@@ -665,12 +690,12 @@ vector<string> Tradutor::opcode_to_ia32(string opcode, vector<string> operands){
         new_opcode.push_back("\tmov [" + operands.at(0) + "], eax");
     }
     else if(opcode == "INPUT"){
-        new_opcode.push_back("mov ecx, " + operands.at(0));
-        new_opcode.push_back("mov edx, 5");
-        new_opcode.push_back("call LeerString");
-        new_opcode.push_back("mov esi, " + operands.at(0));
-        new_opcode.push_back("call ConverteInteiro");
-        new_opcode.push_back("mov [" + operands.at(0) + "], eax");
+        new_opcode.push_back("\tmov ecx, " + operands.at(0));
+        new_opcode.push_back("\tmov edx, 5");
+        new_opcode.push_back("\tcall LeerString");
+        new_opcode.push_back("\tmov esi, " + operands.at(0));
+        new_opcode.push_back("\tcall ConverteInteiro");
+        new_opcode.push_back("\tmov [" + operands.at(0) + "], eax");
     }
     else if(opcode == "OUTPUT"){
         new_opcode.push_back("\tmov eax, [" + operands.at(0) + "]");

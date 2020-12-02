@@ -28,12 +28,13 @@ public:
 
 private:
     void preprocess();
-    void link_1();
+    void link();
     void translate_data();
     void translate_text();
-    vector<string> opcode_to_ia32(string opcode, vector<string> operands);
-    // void link_2();
+    vector<string> opcode_to_ia32(string opcode, vector<string> operands, string label);
     void if_equ_handler();
+    void translation_to_file();
+    void insert_procedures();
     void create_overflow();
     void create_leerchar();
     void create_escreverchar();
