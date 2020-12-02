@@ -5,9 +5,6 @@ tradutor.exe
 tradutor
 
 .vscode/settings.json
-teste.asm
-teste.obj
-teste.pre
 Montador.cpp
 Montador.h
 translator.cpp
@@ -18,3 +15,5 @@ aaaa/c.asm
 aaaa/d.asm
 aaaa/lerint.asm
 aaaa/
+a.asm
+TRABALHO_2_SB.zip

@@ -9,19 +9,13 @@
  *                                      *
  ****************************************/
 
-#include <string>
-#include <vector>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include "Tradutor.h"
+O trabalho consiste de um Programa que simula um tradutor.
+O programa recebe um arquivo .asm em assembly inventado, e resulta criando um arquivo .s compatível com o assembly IA32.
 
-using namespace std;
+Os comandos necessários são:
 
-int main(int argc, char* argv[]) {
-    string file = argv[1];
-    // passa para o construtor do montador o nome do arquivo .asm
-    Tradutor* tradutor = new Tradutor(file); 
-    tradutor->inicializar_processo();
-	return 0;
-}
+- Para compilar o programa:
+g++ main.cpp Tradutor.cpp -o tradutor
+
+- Para traduizir o arquivo .asm com o programa, gerando o arquivo .s:
+./tradutor -p myprogram.asm

@@ -1,5 +1,5 @@
 /****************************************
- * Trabalho 1 - Software Basico         *
+ * Trabalho 2 - Software Basico         *
  *                                      *
  * Ian Nery Bandeira                    *
  * 170144739                            *
@@ -27,11 +27,11 @@ public:
     void inicializar_processo();
 
 private:
+    vector<string> opcode_to_ia32(string opcode, vector<string> operands, string label);
     void preprocess();
     void link();
     void translate_data();
     void translate_text();
-    vector<string> opcode_to_ia32(string opcode, vector<string> operands, string label);
     void if_equ_handler();
     void translation_to_file();
     void insert_procedures();
@@ -39,7 +39,7 @@ private:
     void create_leerchar();
     void create_escreverchar();
     void create_leerstring();
-    void create_escreverstring(); // TODO
+    void create_escreverstring();
     void create_escreverint();
     void create_converteint();
     string asm_path, preprocessed_path, ia32_path, line;
