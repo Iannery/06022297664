@@ -18,4 +18,4 @@ Os comandos necessários são:
 g++ main.cpp Tradutor.cpp -o tradutor
 
 - Para traduizir o arquivo .asm com o programa, gerando o arquivo .s:
-./tradutor -p myprogram.asm
+./tradutor myprogram.asm
